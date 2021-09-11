@@ -873,6 +873,7 @@ class Clas(tk.Frame):
         r.clipboard_clear()
         r.clipboard_append("".join(l))
         r.update()
+        r.destroy()
 
     def initUI(self):
         conn = sqlite3.connect("classes.db")
