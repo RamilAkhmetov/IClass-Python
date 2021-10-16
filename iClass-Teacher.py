@@ -8,9 +8,9 @@ import pathlib
 from tkinter import messagebox as mb
 
 light_green = "#C4F4CE"
-light_yellow = "#F5EBCF",
+light_yellow = "#F5EBCF"
 base_font = ("Arial", 10)
-weight="bold"
+weight = "bold"
 heading_font = ("Arial", 15, weight)
 manual_font = ("Arial", 12)
 
@@ -80,6 +80,7 @@ class Manual(tk.Frame):
             row=1, column=0, sticky="w", padx=(0 ,0)
         )
 
+
 class testList(tk.Frame):
     def __init__(self, master=None):
         super().__init__(master)
@@ -111,19 +112,30 @@ class testList(tk.Frame):
                 test_frame = tk.Frame(master=self, bg="white",
                                   highlightbackground=light_green, highlightthickness=3,
                                   highlightcolor=light_green)
-                test_frame.pack(side="top", fill="x")
-                tk.Label(master=test_frame, font=base_font, bg="white", wraplength=600, justify="left",
-                         text=data[i][1], ).pack(side=tk.LEFT, padx=(5, 0), pady=0)
+                test_frame.grid(row=i, sticky="ew")
+                tk.Label(master=test_frame, font=base_font, bg="white", wraplength=200, justify="left",
+                         text=str(i+1)+") "+ data[i][1], ).pack(side=tk.LEFT, padx=(5, 0), pady=0)
 
 
                 fl_bt = tk.Button(master=test_frame, font=base_font,
-                          text=f"Выгрузить файл №{i+1}", )
-                fl_bt.pack(side=tk.RIGHT, padx=0)
-                fl_bt.bind(f"<Button-1>", self.on_click_fl_bt)
+                          text=f"Выгрузить файл", )
+                fl_bt.configure(command=lambda button=fl_bt: self.uploadButton(button.master))
+                fl_bt.pack(side=tk.RIGHT, padx=(0, 50))
+                #fl_bt.bind(f"<Button-1>", self.on_click_fl_bt)
                 sh_bt = tk.Button(master=test_frame, font=base_font,
-                          text=f"Просмотреть/редактировать №{i+1}")
-                sh_bt.pack(side=tk.RIGHT, padx=(30, 0))
-                sh_bt.bind(f"<Button-1>", self.on_click_sh_bt)
+                          text=f"Просмотреть/редактировать")
+                sh_bt.configure(command=lambda button=sh_bt: self.testButton(button.master))
+                sh_bt.pack(side=tk.RIGHT, padx=(400, 0))
+                #sh_bt.bind(f"<Button-1>", self.on_click_sh_bt)
+
+    def uploadButton(self, master):
+        gi = master.grid_info()['row']
+        self.uploadFile(gi+1)
+
+    def testButton(self, master):
+        gi = master.grid_info()['row']
+        self.showTest(gi+1)
+
 
     def on_click_fl_bt(self, event):
         button_text = event.widget.cget("text")
@@ -170,12 +182,15 @@ class testList(tk.Frame):
         variants = cursor.fetchall()
         variants = [(variants[i][1], variants[i][2], variants[i][3]) for i in range(len(variants))]
 
+        conn.close()
+
         if "tests" not in os.listdir():
             os.makedirs("tests")
         test_name = name[:200]
         test_name = re.sub(r'[/\\?%*:|"<>.,]', "", test_name)
-        test_name = re.sub(r'[ ]', "_", test_name)
+
         test_name = re.sub(r'[\n]', "", test_name)
+
 
 
         test_path = str(pathlib.Path().resolve())+f"\\tests\\{test_name}.db"
@@ -185,6 +200,8 @@ class testList(tk.Frame):
         cnn = sqlite3.connect(test_path)
         curs = cnn.cursor()
         curs.execute("CREATE TABLE IF NOT EXISTS count_q(count integer);")
+        cnn.commit()
+        curs.execute("CREATE TABLE IF NOT EXISTS name(name text);")
         cnn.commit()
         curs.execute("CREATE TABLE IF NOT EXISTS types(id integer primary key, test_name text, type integer);")
         cnn.commit()
@@ -199,20 +216,23 @@ class testList(tk.Frame):
 
         curs.execute("INSERT INTO count_q(count) VALUES(?);",
                        (count_q,))
-        conn.commit()
+        cnn.commit()
+        curs.execute("INSERT INTO name(name) VALUES(?);",
+                     (name,))
+        cnn.commit()
         curs.executemany("INSERT INTO types(test_name, type) VALUES(?, ?);",
                          types)
-        conn.commit()
+        cnn.commit()
         curs.executemany("INSERT INTO tasks_with_answers(test_name, task, answer, err) VALUES(?, ?, ?, ?);",
                            tasks_with_answers)
-        conn.commit()
+        cnn.commit()
         curs.executemany("INSERT INTO tasks_with_variants(test_name, task, count_variants) VALUES(?, ?, ?);",
                            tasks_with_variants)
-        conn.commit()
+        cnn.commit()
         curs.executemany("INSERT INTO tasks_with_questions(test_name, task) VALUES(?, ?);", tasks_with_questions)
-        conn.commit()
+        cnn.commit()
         curs.executemany("INSERT INTO variants(test_name, variant, status) VALUES(?, ?, ?);", variants)
-        conn.commit()
+        cnn.commit()
 
 
 
@@ -242,14 +262,14 @@ class Test(tk.Frame):
         self.current_answer = ""
         self.current_err = 0
 
-        self.types = [None for i in range(100)]
-        self.tasks = [None for i in range(100)]
+        self.types = [None for i in range(1000)]
+        self.tasks = [None for i in range(1000)]
 
-        self.variants = [None for i in range(100)]
-        self.flags = [None for i in range(100)]
+        self.variants = [None for i in range(1000)]
+        self.flags = [None for i in range(1000)]
 
-        self.answers = [None for i in range(100)]
-        self.errors = [None for i in range(100)]
+        self.answers = [None for i in range(1000)]
+        self.errors = [None for i in range(1000)]
 
         self.current = 1
 
@@ -297,13 +317,12 @@ class Test(tk.Frame):
                 self.types[i] = 2
                 self.tasks[i] = tasks_with_questions[self.current_tsk_q][2]
 
-        name = list(name.split(sep=") "))[1]
 
         tk.Label(text="Название работы", master=self, font=base_font).grid(
             row=0, column=0, padx=10, pady=10, sticky="n")
         self.name_text.grid(row=0, column=1, padx=10, pady=10, sticky="n")
         self.name_text.insert(1.0, name)
-        tk.Label(text="Количество вопросов\n(не больше 100)", master=self, font=base_font).grid(
+        tk.Label(text="Количество вопросов\n(не больше 1000)", master=self, font=base_font).grid(
             row=0, column=2, padx=10, pady=10, sticky="n")
         self.count_text.grid(row=0, column=3, padx=10, pady=10, sticky="n")
         self.count_text.insert(1.0, str(count_q))
@@ -318,7 +337,7 @@ class Test(tk.Frame):
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM tests WHERE id=?", [(self.index)])
         old_i, old_name, old_count_q = cursor.fetchone()
-        test_name = str(old_i) + ") " + self.name_text.get(1.0, tk.END)
+        test_name = self.name_text.get(1.0, tk.END)
         test_name = re.sub(r'[\n]', "", test_name)
         count_q = int(self.count_text.get(1.0, tk.END))
 
@@ -551,14 +570,14 @@ class newTest(tk.Frame):
         self.current_answer = ""
         self.current_err = 0
 
-        self.types = [None for i in range(100)]
-        self.tasks = [None for i in range(100)]
+        self.types = [None for i in range(1000)]
+        self.tasks = [None for i in range(1000)]
 
-        self.variants = [None for i in range(100)]
-        self.flags = [None for i in range(100)]
+        self.variants = [None for i in range(1000)]
+        self.flags = [None for i in range(1000)]
 
-        self.answers = [None for i in range(100)]
-        self.errors = [None for i in range(100)]
+        self.answers = [None for i in range(1000)]
+        self.errors = [None for i in range(1000)]
 
         self.current = 1
         self.grid()
@@ -567,7 +586,7 @@ class newTest(tk.Frame):
     def initUI(self):
         tk.Label(text="Название работы", master=self,font=base_font).grid(row=0, column=0, padx=10, pady=10, sticky="n")
         self.name_text.grid(row=0, column=1, padx=10, pady=10, sticky="n")
-        tk.Label(text="Количество вопросов\n(не больше 100)", master=self,font=base_font).grid(row=0, column=2, padx=10, pady=10, sticky="n")
+        tk.Label(text="Количество вопросов\n(не больше 1000)", master=self,font=base_font).grid(row=0, column=2, padx=10, pady=10, sticky="n")
         self.count_text.grid(row=0, column=3, padx=10, pady=10, sticky="n")
         tk.Button(text="Применить", master=self, command=self.generate_constructor,font=base_font).grid(row=0, column=4,
                                                                                                 padx=10, pady=10,
@@ -623,8 +642,9 @@ class newTest(tk.Frame):
             else:
                 cursor.execute("select count(*) from tests")
                 count_of_tests = cursor.fetchone()[0]
-            test_name = str(count_of_tests+1)+") "+self.name_text.get(1.0, tk.END)
+            test_name = self.name_text.get(1.0, tk.END)
             test_name = re.sub(r'[\n]', "", test_name)
+            test_name = re.sub(r"""["']""", "", test_name)
 
             cursor.execute("INSERT INTO tests(id, test_name, count_q) VALUES(?, ?, ?);",
                            (count_of_tests+1, test_name, count_q))
