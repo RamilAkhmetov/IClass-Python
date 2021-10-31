@@ -7,18 +7,20 @@ import shutil
 import sqlite3
 import pathlib
 import re
-import cryptocode
+
 import base64
 
 light_green = "#C4F4CE"
 light_yellow = "#F5EBCF"
 base_font = ("Arial", 10)
 
+
 class App(tk.Frame):
     def __init__(self, master=None):
         super().__init__(master)
         self.Scrollable_frame = ScrollableFrame(master)
         self.frame = self.Scrollable_frame.scrollable_frame
+        self.frame.grid(sticky="news")
         self.Scrollable_frame.pack()
         self.master = master
         self.initUI()
@@ -27,6 +29,9 @@ class App(tk.Frame):
         self.master.title("iClass")
         menubar = tk.Menu(self.master)
         self.master.config(menu=menubar)
+        studentsInfo = tk.Menu(menubar)
+        studentsInfo.add_command(label="Личные данные", command=self.showProfile)
+        menubar.add_cascade(label="Мой профиль", menu=studentsInfo)
         classesMenu = tk.Menu(menubar)
         classesMenu.add_command(label="Загрузить новую", command=self.downloadNewTest)
         classesMenu.add_command(label="Новые работы", command=self.showTests)
@@ -41,6 +46,10 @@ class App(tk.Frame):
         for widget in frame.winfo_children():
             widget.destroy()
 
+    def showProfile(self):
+        App.clear_frame(self.frame)
+        profile = Profile(self.frame)
+
     def showTests(self):
         App.clear_frame(self.frame)
         tests = TestsList(self.frame)
@@ -49,13 +58,62 @@ class App(tk.Frame):
         App.clear_frame(self.frame)
         results = Results(self.frame)
 
-
     def downloadNewTest(self):
         App.clear_frame(self.frame)
         dowloader = TestLoader(self.frame)
 
     def showManual(self):
         pass
+
+
+class Profile(tk.Frame):
+    def __init__(self, master=None):
+        super().__init__(master)
+        self.master = master
+
+        self.fio = None
+        self.clas = None
+
+        self.grid(sticky="nsew")
+        self.initUI()
+
+    def initUI(self):
+        if "Мои данные.txt" in os.listdir():
+            file = open("Мои данные.txt")
+            fio, klas = file.readlines()
+            file.close()
+        else:
+            fio = ""
+            klas = ""
+
+        fr = tk.Frame(master=self, highlightbackground=light_green,
+                      highlightthickness=3, highlightcolor=light_green, bg=light_yellow)
+        fr.grid(sticky="news", pady=(200, 10))
+        tk.Label(master=fr, text="Мои данные", font=base_font, bg=light_yellow).grid(row=0, column=0, padx=(10, 0),
+                                                                                pady=(10, 0), sticky="w")
+        save_bt = tk.Button(master=fr, font=base_font, text="Сохранить", bg="light green")
+        save_bt.config(command=self.save)
+        save_bt.grid(row=0, column=1, sticky="e", padx=(200, 10), pady=(10, 0))
+        tk.Label(master=fr, text="ФИО", font=base_font, bg=light_yellow).grid(row=1, column=0, padx=(10, 0),
+                                                                         pady=(30, 0), sticky="w")
+        self.fio = tk.Text(master=fr, font=base_font, relief=tk.RAISED, width=50, height=1)
+        self.fio.insert(1.0, fio)
+        self.fio.grid(row=1, column=1, padx=(200, 10), sticky="e", pady=(30, 0))
+        tk.Label(master=fr, font=base_font, bg=light_yellow, text="Класс").grid(row=2, column=0, padx=(10, 0),
+                                                                                pady=(30, 10), sticky="w")
+        self.clas = tk.Text(master=fr, font=base_font, relief=tk.RAISED, width=10, height=1)
+        self.clas.insert(1.0, klas)
+        self.clas.grid(row=2, column=1, padx=(200, 10), sticky="e", pady=(30, 10))
+
+    def save(self):
+        fio = self.fio.get(1.0, tk.END)
+        klas = self.clas.get(1.0, tk.END)
+        klas = klas.upper()
+        fio = re.sub(r"[\n]", "", fio)
+        klas = re.sub(r"[\n]", "", klas)
+        file = open("Мои данные.txt", "w")
+        file.writelines([fio+"\n", klas])
+        file.close()
 
 
 class TestLoader(tk.Frame):
@@ -77,8 +135,8 @@ class TestLoader(tk.Frame):
                 file = open(f"My tests/{file_name}", "w+")
                 file.close()
                 shutil.copyfile(file_path, f"My tests/{file_name}")
-            App.clear_frame(self.master)
-            self.destroy()
+        App.clear_frame(self.master)
+        self.destroy()
 
 
 class TestsList(tk.Frame):
@@ -100,36 +158,42 @@ class TestsList(tk.Frame):
                      font=('Arial', 25)).pack(padx=10, pady=10)
         else:
             tests = os.listdir("My tests")
+
             tests = [tests[i].split(".")[0] for i in range(len(tests))]
+            tests_count = len(tests)
             results = os.listdir("Results")
-            results = [results[i].split(".")[0] for i in range(len(results))]
-            count = len(tests)-len(results)
+            results = [results[i].split("(")[0] for i in range(len(results))]
+
+            unfinished_tests_count = len(tests)
+
             names = []
-            for i in range(count):
+            for i in range(tests_count):
 
                 if tests[i] in results:
+                    unfinished_tests_count -= 1
                     continue
-                test_path = str(pathlib.Path().resolve()) + f"\\My tests\\{tests[i]}.db"
 
-                conn = sqlite3.connect(test_path)
-                cursor = conn.cursor()
-                cursor.execute("SELECT name FROM sqlite_temp_master WHERE type='table';")
-
-                cursor.execute("SELECT * FROM name;")
-                name = cursor.fetchone()[0]
-                names.append(name)
-            for i in range(count):
+                names.append(tests[i])
+            if unfinished_tests_count == 0:
+                tk.Label(master=self,
+                         text="Новых работ нет",
+                         font=('Arial', 25)).pack(padx=10, pady=10)
+            for i in range(unfinished_tests_count):
                 row = tk.Frame(master=self, bg="white", highlightbackground=light_green, highlightthickness=3,
                                   highlightcolor=light_green)
                 row.grid(sticky="ew")
-                lb = tk.Label(master=row, font=base_font, text=names[i], bg="white")
+                lb = tk.Label(master=row, font=base_font, text=names[i], bg="white", wraplength=600)
                 self.names.append(lb['text'])
                 lb.pack(side=tk.LEFT, padx=(20, 0), fill=tk.X)
                 bt = tk.Button(master=row, font=base_font, text="Начать")
                 bt.configure(command=lambda button=bt: self.startTest(button.master))
-                bt.pack(side=tk.RIGHT, padx=(900, 0), fill=tk.X)
+                bt.pack(side=tk.RIGHT, padx=(200, 0), fill=tk.X)
 
     def startTest(self, master):
+        if "Мои данные.txt" not in os.listdir():
+            err = mb.showerror(title="Ошибка", message="Личные данные не заполенены. "
+                                                       "Введите их в разделе 'Мой профиль'->'Личные данные'")
+            return
         gi = master.grid_info()['row']
         name = self.names[gi]
         name = re.sub(r'["]', '', name)
@@ -141,11 +205,12 @@ class Results(tk.Frame):
     def __init__(self, master):
         super().__init__(master)
         self.master = master
+        self.names = []
         self.grid()
         self.initUI()
 
     def initUI(self):
-        if "My tests" not in os.listdir():
+        if "Results" not in os.listdir():
             os.makedirs("Results")
         if len(os.listdir("Results")) == 0:
             tk.Label(master=self,
@@ -154,11 +219,83 @@ class Results(tk.Frame):
 
         else:
             results = os.listdir("Results")
+            results = [results[i].split(".")[0] for i in range(len(results))]
+
             count = len(results)
             for i in range(count):
-                file = open(results[i], "w", encoding="utf8")
-                data = file.readlines()
-                print(data)
+                row = tk.Frame(master=self, bg="white", highlightbackground=light_green, highlightthickness=3,
+                               highlightcolor=light_green)
+                row.grid(sticky="ew")
+                lb = tk.Label(master=row, font=base_font, text=results[i].split(sep="(")[0], bg="white", wraplength=300)
+                self.names.append(lb['text'])
+                lb.pack(side=tk.LEFT, padx=(20, 0), fill=tk.X)
+                bt = tk.Button(master=row, font=base_font, text="Показать результат")
+                bt.configure(command=lambda button=bt: self.showResult(button.master))
+                bt.pack(side=tk.RIGHT, padx=(600, 0), fill=tk.X)
+
+    def showResult(self, master):
+        gi = master.grid_info()['row']
+        name = self.names[gi]
+        name = re.sub(r'["]', '', name)
+        App.clear_frame(self.master)
+        result = Result(self.master, name)
+        self.destroy()
+
+
+class Result(tk.Frame):
+    def __init__(self, master, name):
+        super().__init__(master)
+        self.master = master
+        self.name = name
+        self.task_frame = tk.Frame(master=self, bg=light_green, highlightbackground="green", highlightcolor="green",
+                                   highlightthickness=3)
+        self.grid()
+        self.initUI()
+
+
+    def initUI(self):
+
+        with open(f"Results/{self.name}.txt", "r") as file:
+            data = file.read()
+        data = data.split(sep="\n")[:-1]
+        count = int(data[2])
+
+        tk.Label(master=self, text="Работа по теме", font=base_font).grid(row=0, column=0, padx=(30, 0), sticky="n")
+        tk.Label(master=self, text=self.name, font=base_font, bg="white", wraplength=400).grid(row=0, column=1, padx=(10, 0),
+                                                                               sticky="n")
+        tk.Label(master=self, text="Количество вопросов", font=base_font).grid(row=0, column=2, padx=(200, 0),
+                                                                               sticky="n")
+        tk.Label(master=self, text=str(count), font=base_font, bg="white").grid(row=0, column=3, padx=(10, 0),
+                                                                                       sticky="n")
+        self.task_frame.grid(row=1, column=1, columnspan=2, pady=(100, 0), sticky="ew")
+        for i in range(count):
+            fr = tk.Frame(master=self.task_frame, bg=light_green)
+            fr.grid(row=i, column=0, columnspan=3)
+            l = tk.Label(master=fr, text=f"Вопрос №{i + 1}", font=base_font, bg=light_green)
+            l.grid(
+                row=0, column=0, pady=(5, 0), padx=(5, 30), sticky="w")
+            line = data[i+3]
+            if line[0] == '0':
+                points, maxs = line[2:].split(sep="=")[1].split(sep="_")
+                tk.Label(master=fr, text=f"Ваш результат: {points} из {maxs}", font=base_font, bg="white").grid(
+                    row=0, column=1, pady=(5, 0), padx=(5, 0), sticky="w")
+            elif line[0] == '1':
+                tk.Label(master=fr, text="Ваш ответ:", font=base_font, bg=light_green).grid(
+                    row=0, column=1, pady=(5, 0), padx=(5, 0), sticky="w")
+                tk.Label(master=fr, text=line.split(sep=":")[1], font=base_font, bg="white"
+                         ).grid(row=0, column=2, padx=(5, 0), pady=(5, 0), sticky="w")
+            else:
+                tk.Label(master=fr, text="Ваш ответ:", font=base_font, bg=light_green).grid(
+                    row=0, column=1, pady=(5, 0), padx=(5, 0), sticky="w")
+                tk.Label(master=fr, text=line.split(sep=":")[1], font=base_font, bg="white"
+                         ).grid(row=0, column=2, padx=(5, 0), pady=(5, 0), sticky="w")
+
+
+
+
+
+
+
 
 
 
@@ -203,18 +340,18 @@ class Test(tk.Frame):
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM count_q")
         self.count_q = cursor.fetchone()[0]
-
-        cursor.execute("SELECT * FROM types WHERE test_name=?;", [(self.name)])
+        cursor.execute("SELECT * FROM name")
+        name = cursor.fetchone()[0]
+        cursor.execute("SELECT * FROM types WHERE test_name=?;", [(name)])
         types = cursor.fetchall()
-        cursor.execute("SELECT * FROM tasks_with_answers WHERE test_name=?;", [(self.name)])
+        cursor.execute("SELECT * FROM tasks_with_answers WHERE test_name=?;", [(name)])
         tasks_with_answers = cursor.fetchall()
-        cursor.execute("SELECT * FROM tasks_with_variants WHERE test_name=?;", [(self.name)])
+        cursor.execute("SELECT * FROM tasks_with_variants WHERE test_name=?;", [(name)])
         tasks_with_variants = cursor.fetchall()
-        cursor.execute("SELECT * FROM variants WHERE test_name=?;", [(self.name)])
+        cursor.execute("SELECT * FROM variants WHERE test_name=?;", [(name)])
         variants = cursor.fetchall()
-        cursor.execute("SELECT * FROM tasks_with_questions WHERE test_name=?;", [(self.name)])
+        cursor.execute("SELECT * FROM tasks_with_questions WHERE test_name=?;", [(name)])
         tasks_with_questions = cursor.fetchall()
-
         for i in range(self.count_q):
             if types[i][2] == 0:
                 self.types[i] = 0
@@ -239,7 +376,8 @@ class Test(tk.Frame):
                 self.tasks[i] = tasks_with_questions[self.current_tsk_q][2]
 
         tk.Label(master=self, text="Работа по теме", font=base_font).grid(row=0, column=0, padx=(30, 0), sticky="n")
-        tk.Label(master=self, text=self.name, font=base_font, bg="white").grid(row=0, column=1, padx=(10, 0), sticky="n")
+        tk.Label(master=self, text=name, font=base_font, bg="white", wraplength=400).grid(
+            row=0, column=1, padx=(10, 0), sticky="n")
         tk.Label(master=self, text="Количество вопросов", font=base_font).grid(row=0, column=2, padx=(30, 0), sticky="n")
         tk.Label(master=self, text=str(self.count_q), font=base_font, bg="white").grid(row=0, column=3, padx=(10, 0), sticky="n")
         tk.Button(master=self, text="Закончить работу", bg="light green", command=lambda: self.save_result()).grid(
@@ -410,27 +548,38 @@ class Test(tk.Frame):
             for i in range(self.count_q):
                 if self.types[i] == 0:
                     lin = " ".join(list(map(str, self.results[i])))+f"={points}_{corrects}"+"\n"
+                    lin = str(self.types[i])+":"+lin
                     line = lin.encode("utf8")
+
                     encrypted_line = base64.b64encode(line)
-                    encrypted_line = encrypted_line.decode("utf8")
+                    #encrypted_line = encrypted_line.decode("utf8")
                     #encrypted_line = cryptocode.encrypt(line, key)
                 elif self.types[i] == 1:
-                    lin = self.results[i]
+                    lin = str(self.types[i])+":"+self.results[i]
                     line = lin.encode("utf8")
+
                     encrypted_line = base64.b64encode(line)
-                    encrypted_line = encrypted_line.decode("utf8")
+                    #encrypted_line = encrypted_line.decode("utf8")
                     #encrypted_line = cryptocode.encrypt(line, key)
                 else:
-                    lin = self.results[i]
+                    lin = str(self.types[i])+":"+self.results[i]
                     line = lin.encode("utf8")
+
                     encrypted_line = base64.b64encode(line)
-                    encrypted_line = encrypted_line.decode("utf8")
+                    #encrypted_line = encrypted_line.decode("utf8")
                     #encrypted_line = cryptocode.encrypt(line)
                 str_results.append(lin)
                 encrypted_str_results.append(encrypted_line)
-            print(str_results)
-            file = open(f"Results/{self.name}.txt", "w", encoding="utf8")
-            file.writelines(encrypted_str_results)
+            encrypted_str_results.insert(0, base64.b64encode((str(self.count_q)+"\n").encode("utf8")))
+
+            with open("Мои данные.txt") as file:
+                fio, klas = file.readlines()
+
+            str_results.insert(0, str(self.count_q)+"\n")
+            str_results.insert(0, klas+"\n")
+            str_results.insert(0, fio)
+            file = open(f"Results/{self.name}({fio[:-1]}).txt", "w")
+            file.writelines(str_results)
             file.close()
             """
             conn = sqlite3.connect(f"Results/{self.name}.db")

@@ -6,6 +6,10 @@ import os
 import sqlite3
 import pathlib
 from tkinter import messagebox as mb
+from tkinter import filedialog as fl
+import shutil
+from collections import Counter
+
 
 light_green = "#C4F4CE"
 light_yellow = "#F5EBCF"
@@ -35,6 +39,8 @@ class App(tk.Frame):
         testsMenu = tk.Menu(menubar)
         testsMenu.add_command(label="Показать", command=self.showTests)
         testsMenu.add_command(label="Создать новую работу", command=self.createTest)
+        testsMenu.add_command(label="Результаты", command=self.showResults)
+        testsMenu.add_command(label="Загрузить результат", command=self.loadResult)
         menubar.add_cascade(label="Проверочные работы", menu=testsMenu)
         manualMenu = tk.Menu(menubar)
         manualMenu.add_command(label="Показать", command=self.showManual)
@@ -52,6 +58,14 @@ class App(tk.Frame):
     def showTests(self):
         self.clear_frame(self.frame)
         testsList = testList(self.frame)
+
+    def showResults(self):
+        self.clear_frame(self.frame)
+        results = Results(self.frame)
+
+    def loadResult(self):
+        self.clear_frame(self.frame)
+        loader = loadResult(self.frame)
 
     def createClass(self):
         self.clear_frame(self.frame)
@@ -77,8 +91,139 @@ class Manual(tk.Frame):
             row=0, column=0, sticky="w", padx=(0, 0))
         paragraph_1 = """\tiClass - это приложение для создания тренировочных работ. """
         tk.Label(master=self.master, font=manual_font, text=paragraph_1, wraplength=900, justify="left").grid(
-            row=1, column=0, sticky="w", padx=(0 ,0)
+            row=1, column=0, sticky="w", padx=(0, 0)
         )
+
+
+class Results(tk.Frame):
+    def __init__(self, master=None):
+        super().__init__(master)
+        self.names = []
+
+        self.initUI()
+        self.grid()
+
+    def initUI(self):
+        if "Результаты" not in os.listdir():
+            os.makedirs("Результаты")
+        if len(os.listdir("Результаты")) == 0:
+
+            tk.Label(master=self,
+                     text="Список результатов пуст.\n Добавьте результаты в разделе 'Загрузить результат'",
+                     font=('Arial', 25)).pack(padx=10, pady=10)
+
+        else:
+            all_results = os.listdir("Результаты")
+            all_results = [all_results[i].split("(")[0] for i in range(len(all_results))]
+            results = list(Counter(all_results))
+            count = len(results)
+            for i in range(count):
+                row = tk.Frame(master=self, bg="white", highlightbackground=light_green, highlightthickness=3,
+                               highlightcolor=light_green)
+                row.grid(sticky="ew")
+                lb = tk.Label(master=row, font=base_font, text=results[i], bg="white", wraplength=300)
+                self.names.append(lb['text'])
+                lb.pack(side=tk.LEFT, padx=(20, 0), fill=tk.X)
+                bt = tk.Button(master=row, font=base_font, text="Показать результаты по классам")
+                bt.configure(command=lambda button=bt: self.showResult(button.master))
+                bt.pack(side=tk.RIGHT, padx=(600, 0), fill=tk.X)
+
+    def showResult(self, master):
+        gi = master.grid_info()['row']
+        name = self.names[gi]
+        name = re.sub(r'["]', '', name)
+        App.clear_frame(self.master)
+        classresult = classResult(self.master, name)
+        self.destroy()
+
+
+class classResult(tk.Frame):
+    def __init__(self, master, name):
+        super().__init__(master)
+
+        self.master = master
+        self.name = name
+        self.full_name = ""
+        self.classes = dict()
+        self.initUI()
+        self.grid()
+
+    def initUI(self):
+        conn = sqlite3.connect(f"tests/{self.name}.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM name;")
+        self.full_name = cursor.fetchone()[0]
+        conn.close()
+        tk.Label(master=self, text=self.full_name, font=heading_font, bg="white").grid()
+        for file_path in os.listdir("Результаты"):
+            if file_path.split(sep="(")[0].split(sep="/")[-1] != self.name:
+                continue
+            file = open(f"Результаты/{file_path}")
+            fio = file.readline()[:-1]
+            klas = file.readline()[:-1]
+            if klas in self.classes.keys():
+                self.classes[f"{klas}"] += 1
+            else:
+                self.classes[f"{klas}"] = 1
+        conn = sqlite3.connect("classes.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM classes")
+        classes_data = cursor.fetchall()
+        clases = {classes_data[i][0]: classes_data[i][1] for i in range(len(classes_data))}
+
+        for i in range(len(self.classes)):
+            row = tk.Frame(master=self, bg="white", highlightbackground=light_green, highlightthickness=3,
+                           highlightcolor=light_green)
+            row.grid(sticky="ew", row=i+1)
+            print(self.classes)
+            lb = tk.Label(master=row, font=base_font, text=list(self.classes.keys())[i], bg="white", wraplength=300)
+            lb.pack(side=tk.LEFT, padx=(20, 0), fill=tk.X)
+            bt = tk.Button(master=row, font=base_font, text="Показать результаты учеников")
+            bt.configure(command=lambda button=bt: self.showResult(button.master))
+            bt.pack(side=tk.RIGHT, padx=(400, 0), fill=tk.X)
+            tk.Label(master=row, bg="white", font=base_font,
+                     text=f"Есть результат от {list(self.classes.values())[i]} "
+                          f"из {clases[list(self.classes.keys())[i]]}").pack(side=tk.LEFT, padx=(20, 0))
+
+    def showResult(self, master):
+        pass
+
+
+class studentsResult(tk.Frame):
+    def __init__(self, master=None):
+        super().__init__(master)
+
+        self.master = master
+        self.initUI()
+        self.grid()
+
+    def initUI(self):
+        pass
+
+
+
+
+class loadResult(tk.Frame):
+    def __init__(self, master=None):
+        super().__init__(master)
+        self.initUI()
+
+    def initUI(self):
+        file_path = fl.askopenfilename()
+        if "Результаты" not in os.listdir():
+            os.makedirs("Результаты")
+        if file_path in os.listdir("Результаты"):
+            pass
+        else:
+            file_name = list(file_path.split(sep="/"))[-1]
+            if file_name != "":
+                file = open(f"Результаты/{file_name}", "w+")
+                file.close()
+                shutil.copyfile(file_path, f"Результаты/{file_name}")
+        App.clear_frame(self.master)
+        self.destroy()
+
+
 
 
 class testList(tk.Frame):
@@ -113,7 +258,7 @@ class testList(tk.Frame):
                                   highlightbackground=light_green, highlightthickness=3,
                                   highlightcolor=light_green)
                 test_frame.grid(row=i, sticky="ew")
-                tk.Label(master=test_frame, font=base_font, bg="white", wraplength=200, justify="left",
+                tk.Label(master=test_frame, font=base_font, bg="white", wraplength=600, justify="left",
                          text=str(i+1)+") "+ data[i][1], ).pack(side=tk.LEFT, padx=(5, 0), pady=0)
 
 
@@ -125,7 +270,7 @@ class testList(tk.Frame):
                 sh_bt = tk.Button(master=test_frame, font=base_font,
                           text=f"Просмотреть/редактировать")
                 sh_bt.configure(command=lambda button=sh_bt: self.testButton(button.master))
-                sh_bt.pack(side=tk.RIGHT, padx=(400, 0))
+                sh_bt.pack(side=tk.RIGHT, padx=(200, 0))
                 #sh_bt.bind(f"<Button-1>", self.on_click_sh_bt)
 
     def uploadButton(self, master):
@@ -159,6 +304,11 @@ class testList(tk.Frame):
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM tests WHERE id=?", [(index)])
         i, name, count_q = cursor.fetchone()
+        if "tests" not in os.listdir():
+            os.makedirs("tests")
+        test_name = name[:200]
+        test_name = re.sub(r'[/\\?%*:|"<>.,]', "", test_name)
+        test_name = re.sub(r'[\n]', "", test_name)
 
         cursor.execute("SELECT * FROM types WHERE test_name=?", [(name)])
         types = cursor.fetchall()
@@ -184,12 +334,7 @@ class testList(tk.Frame):
 
         conn.close()
 
-        if "tests" not in os.listdir():
-            os.makedirs("tests")
-        test_name = name[:200]
-        test_name = re.sub(r'[/\\?%*:|"<>.,]', "", test_name)
 
-        test_name = re.sub(r'[\n]', "", test_name)
 
 
 
@@ -963,6 +1108,7 @@ class Clas(tk.Frame):
             conn = sqlite3.connect("classes.db")
             cursor = conn.cursor()
             class_name = self.name_entry.get(1.0, tk.END)
+            class_name = class_name.upper()
             class_name = re.sub(r"[\n]", "", class_name)
             count = int(self.count_entry.get(1.0, tk.END))
             cursor.execute("UPDATE classes SET name=? WHERE name=?;", (class_name, self.class_name))
@@ -1030,7 +1176,7 @@ class newClass(tk.Frame):
         cursor.execute("""CREATE TABLE IF NOT EXISTS students
                                       (class text, name text, email text)
                                    """)
-        st_data = [(re.sub(r"[\n]", "", self.name_entry.get(1.0, tk.END)),
+        st_data = [(re.sub(r"[\n]", "", self.name_entry.get(1.0, tk.END)).upper(),
                           re.sub(r"[\n]", "", self.names[i].get(1.0, tk.END)),
                           re.sub(r"[\n]", "", self.emails[i].get(1.0, tk.END))) for i in range(len(self.names))]
         cl_data = [(re.sub(r"[\n]", "", self.name_entry.get(1.0, tk.END)), len(self.names))]
