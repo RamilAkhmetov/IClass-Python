@@ -20,7 +20,7 @@ class App(tk.Frame):
         super().__init__(master)
         self.Scrollable_frame = ScrollableFrame(master)
         self.frame = self.Scrollable_frame.scrollable_frame
-        self.frame.grid(sticky="news")
+
         self.Scrollable_frame.pack()
         self.master = master
         self.initUI()
@@ -158,7 +158,8 @@ class TestsList(tk.Frame):
                      font=('Arial', 25)).pack(padx=10, pady=10)
         else:
             tests = os.listdir("My tests")
-
+            tests.sort(key=lambda f: os.path.getmtime(os.path.join(os.getcwd() + "\My tests", f)))
+            tests = tests[::-1]
             tests = [tests[i].split(".")[0] for i in range(len(tests))]
             tests_count = len(tests)
             results = os.listdir("Results")
@@ -182,7 +183,7 @@ class TestsList(tk.Frame):
                 row = tk.Frame(master=self, bg="white", highlightbackground=light_green, highlightthickness=3,
                                   highlightcolor=light_green)
                 row.grid(sticky="ew")
-                lb = tk.Label(master=row, font=base_font, text=names[i], bg="white", wraplength=600)
+                lb = tk.Label(master=row, font=base_font, text=str(i+1)+") "+names[i], bg="white", wraplength=600)
                 self.names.append(lb['text'])
                 lb.pack(side=tk.LEFT, padx=(20, 0), fill=tk.X)
                 bt = tk.Button(master=row, font=base_font, text="Начать")
@@ -219,6 +220,8 @@ class Results(tk.Frame):
 
         else:
             results = os.listdir("Results")
+            results.sort(key=lambda f: os.path.getmtime(os.path.join(os.getcwd() + "\Results", f)))
+            results = results[::-1]
             results = [results[i].split(".")[0] for i in range(len(results))]
 
             count = len(results)
@@ -226,7 +229,7 @@ class Results(tk.Frame):
                 row = tk.Frame(master=self, bg="white", highlightbackground=light_green, highlightthickness=3,
                                highlightcolor=light_green)
                 row.grid(sticky="ew")
-                lb = tk.Label(master=row, font=base_font, text=results[i].split(sep="(")[0], bg="white", wraplength=300)
+                lb = tk.Label(master=row, font=base_font, text=str(i+1)+") "+results[i].split(sep="(")[0], bg="white", wraplength=300)
                 self.names.append(lb['text'])
                 lb.pack(side=tk.LEFT, padx=(20, 0), fill=tk.X)
                 bt = tk.Button(master=row, font=base_font, text="Показать результат")
@@ -254,8 +257,11 @@ class Result(tk.Frame):
 
 
     def initUI(self):
+        st_file = open("Мои данные.txt")
+        fio, klas = st_file.readlines()
+        fio = fio[:-1]
 
-        with open(f"Results/{self.name}.txt", "r") as file:
+        with open(f"Results/{self.name}({fio}).txt", "r") as file:
             data = file.read()
         data = data.split(sep="\n")[:-1]
         count = int(data[2])
@@ -270,7 +276,7 @@ class Result(tk.Frame):
         self.task_frame.grid(row=1, column=1, columnspan=2, pady=(100, 0), sticky="ew")
         for i in range(count):
             fr = tk.Frame(master=self.task_frame, bg=light_green)
-            fr.grid(row=i, column=0, columnspan=3)
+            fr.grid(row=i, column=0, columnspan=3, sticky="w")
             l = tk.Label(master=fr, text=f"Вопрос №{i + 1}", font=base_font, bg=light_green)
             l.grid(
                 row=0, column=0, pady=(5, 0), padx=(5, 30), sticky="w")
@@ -371,9 +377,11 @@ class Test(tk.Frame):
                 self.tasks[i] = tasks_with_answers[self.current_tsk_a][2]
                 self.answers[i] = tasks_with_answers[self.current_tsk_a][3]
                 self.errors[i] = tasks_with_answers[self.current_tsk_a][4]
+                self.current_tsk_a += 1
             elif types[i][2] == 2:
                 self.types[i] = 2
                 self.tasks[i] = tasks_with_questions[self.current_tsk_q][2]
+                self.current_tsk_q += 1
 
         tk.Label(master=self, text="Работа по теме", font=base_font).grid(row=0, column=0, padx=(30, 0), sticky="n")
         tk.Label(master=self, text=name, font=base_font, bg="white", wraplength=400).grid(
@@ -416,7 +424,7 @@ class Test(tk.Frame):
             for i in range(n):
                 tk.Label(text=f"{i + 1})", font=base_font, master=vr_frame, bg=light_green).grid(
                     row=i, column=0, padx=(5, 0), pady=(5, 0), sticky="w")
-                tk.Label(master=vr_frame, font=base_font, text=self.variants[self.current-1][i], bg="white").grid(
+                tk.Label(master=vr_frame, font=base_font, text=self.variants[self.current-1][i], bg="white", wraplength=80).grid(
                     row=i, column=1, padx=(5, 0), pady=(5, 0), sticky="w"
                 )
                 var1 = tk.BooleanVar()
@@ -435,7 +443,7 @@ class Test(tk.Frame):
                 an = self.results[self.current-1]
             else:
                 an = ""
-            answer = tk.Text(master=self.task_frame, font=base_font, width=80, height=5)
+            answer = tk.Text(master=self.task_frame, font=base_font, width=80, height=5, wrap=tk.WORD)
             answer.insert(1.0, an)
             answer.grid(row=5, column=0, padx=(5, 0), pady=(5, 5), sticky="w")
             self.current_answer = answer
@@ -446,7 +454,7 @@ class Test(tk.Frame):
                 an = self.results[self.current-1]
             else:
                 an = ""
-            ans = tk.Text(master=self.task_frame, font=base_font, width=80, height=5)
+            ans = tk.Text(master=self.task_frame, font=base_font, width=80, height=5, wrap=tk.WORD)
             ans.insert(1.0, an)
             ans.grid(row=5, column=0, padx=(5, 0), pady=(5, 5), sticky="w")
             self.current_ans = ans

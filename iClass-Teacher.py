@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
-import time
+#import time
 import re
 import os
 import sqlite3
@@ -9,6 +9,10 @@ from tkinter import messagebox as mb
 from tkinter import filedialog as fl
 import shutil
 from collections import Counter
+import imaplib
+import email
+import base64
+
 
 
 light_green = "#C4F4CE"
@@ -42,6 +46,11 @@ class App(tk.Frame):
         testsMenu.add_command(label="Результаты", command=self.showResults)
         testsMenu.add_command(label="Загрузить результат", command=self.loadResult)
         menubar.add_cascade(label="Проверочные работы", menu=testsMenu)
+        # emailMenu = tk.Menu(menubar)
+        # emailMenu.add_command(label="Данные авторизации", command=self.emailData)
+        # emailMenu.add_command(label="Отправить работу", command=self.sendTest)
+        # emailMenu.add_command(label="Результаты", command=self.getResult)
+        # menubar.add_cascade(label="Email", menu=emailMenu)
         manualMenu = tk.Menu(menubar)
         manualMenu.add_command(label="Показать", command=self.showManual)
         menubar.add_cascade(label="Руководство пользователя", menu=manualMenu)
@@ -75,6 +84,18 @@ class App(tk.Frame):
         self.clear_frame(self.frame)
         newtest = newTest(self.frame)
 
+    def emailData(self):
+        self.clear_frame(self.frame)
+        emaildata = EmailData(self.frame)
+
+    def sendTest(self):
+        self.clear_frame(self.frame)
+        sendtest = SendTest(self.frame)
+
+    def getResult(self):
+        self.clear_frame(self.frame)
+        getresults = GetResults(self.frame)
+
     def showManual(self):
         self.clear_frame(self.frame)
         manual = Manual(self.frame)
@@ -93,6 +114,125 @@ class Manual(tk.Frame):
         tk.Label(master=self.master, font=manual_font, text=paragraph_1, wraplength=900, justify="left").grid(
             row=1, column=0, sticky="w", padx=(0, 0)
         )
+
+class EmailData(tk.Frame):
+    def __init__(self, master):
+        super().__init__(master)
+
+        self.login = None
+        self.password = None
+        self.today = None
+
+        self.grid()
+        self.initUI()
+
+
+    def initUI(self):
+        if "Email.txt" in os.listdir():
+            file = open("Email.txt")
+            login, password = file.readlines()
+            file.close()
+        else:
+            login = ""
+            password = ""
+
+        fr = tk.Frame(master=self, highlightbackground=light_green,
+                      highlightthickness=3, highlightcolor=light_green, bg=light_yellow)
+        fr.grid(sticky="news", pady=(200, 10))
+        tk.Label(master=fr, text="Мой аккаунт Gmail", font=base_font, bg=light_yellow).grid(row=0, column=0, padx=(10, 0),
+                                                                                     pady=(10, 0), sticky="w")
+        save_bt = tk.Button(master=fr, font=base_font, text="Сохранить", bg="light green")
+        save_bt.config(command=self.save)
+        save_bt.grid(row=0, column=1, sticky="e", padx=(200, 10), pady=(10, 0))
+        tk.Label(master=fr, text="Логин", font=base_font, bg=light_yellow).grid(row=1, column=0, padx=(10, 0),
+                                                                              pady=(30, 0), sticky="w")
+        self.login = tk.Text(master=fr, font=base_font, relief=tk.RAISED, width=50, height=1)
+        self.login.insert(1.0, login)
+        self.login.grid(row=1, column=1, padx=(200, 10), sticky="e", pady=(30, 0))
+        tk.Label(master=fr, font=base_font, bg=light_yellow, text="Пароль").grid(row=2, column=0, padx=(10, 0),
+                                                                                pady=(30, 10), sticky="w")
+        self.password = tk.Text(master=fr, font=base_font, relief=tk.RAISED, width=50, height=1)
+        self.password.insert(1.0, password)
+        self.password.grid(row=2, column=1, padx=(200, 10), sticky="e", pady=(30, 10))
+
+    def save(self):
+        login = self.login.get(1.0, tk.END)
+        password = self.password.get(1.0, tk.END)
+        login = re.sub(r"[\n]", "", login)
+        password = re.sub(r"[\n]", "", password)
+        file = open("Email.txt", "w")
+        file.writelines([login + "\n", password])
+        file.close()
+
+class SendTest(tk.Frame):
+    def __init__(self, master):
+        super().__init__(master)
+
+    def initUI(self):
+        pass
+
+class GetResults(tk.Frame):
+    def __init__(self, master):
+        super().__init__(master)
+
+
+        self.encoded_mails = []
+        self.uids = []
+        self.grid()
+        self.initUI()
+
+    def initUI(self):
+        try:
+            with open("Email.txt") as file:
+                login, password = file.readlines()
+            print(login, password)
+            mail = imaplib.IMAP4_SSL("imap.gmail.com", 993)
+
+            mail.login(login, password)
+            mail.select('inbox')
+            result, data = mail.uid('search', None, 'UNSEEN')
+            ids_list = data[0].split()
+
+            mails = []
+            c = 0
+            for i in ids_list:
+                result, data = mail.uid(u'fetch', i, u"(RFC822)")
+                mail.store(i, '+FLAGS', '\\SEEN')
+                raw_email = data[0][1]
+                raw_email_string = raw_email.decode('utf-8')
+                file = open(f"письмо{c}.txt", "w")
+                file.write(raw_email_string)
+                file.close()
+                c += 1
+                email_message = email.message_from_string(raw_email_string)
+                raw_subject = email_message['Subject']
+                try:
+                    subject = base64.b64decode(raw_subject.split('?')[3]).decode("utf-8")
+                    if subject == "iClass - Учебное приложение":
+                        self.uids.append(i)
+                        self.encoded_mails.append(email_message)
+                except Exception:
+                    continue
+
+
+        except imaplib.socket.gaierror:
+            mb.showerror(title="Ошибка", message="Нет подключения к интернету")
+
+    def save_mails(self):
+        for i in range(len(self.encoded_mails)):
+            email_message = self.encoded_mails[i]
+
+            # if email_message.is_multipart():
+            #     for payload in email_message.get_payload():
+            #         body = payload.get_payload(decode=True)
+            #         if body == None:
+            #             continue
+            #         print(body)
+            #         print(base64.b64decode(body))
+            #         f = open("письмо.txt", "w")
+            #         f.write(body)
+            #         print(body)
+
 
 
 class Results(tk.Frame):
@@ -114,15 +254,21 @@ class Results(tk.Frame):
 
         else:
             all_results = os.listdir("Результаты")
+            all_results.sort(key=lambda f: os.path.getmtime(os.path.join(os.getcwd()+"\Результаты", f)))
+
+            all_results = all_results[::-1]
+
             all_results = [all_results[i].split("(")[0] for i in range(len(all_results))]
             results = list(Counter(all_results))
             count = len(results)
+
+
             for i in range(count):
                 row = tk.Frame(master=self, bg="white", highlightbackground=light_green, highlightthickness=3,
                                highlightcolor=light_green)
                 row.grid(sticky="ew")
-                lb = tk.Label(master=row, font=base_font, text=results[i], bg="white", wraplength=300)
-                self.names.append(lb['text'])
+                lb = tk.Label(master=row, font=base_font, text=str(i+1)+") "+results[i], bg="white", wraplength=300)
+                self.names.append(results[i])
                 lb.pack(side=tk.LEFT, padx=(20, 0), fill=tk.X)
                 bt = tk.Button(master=row, font=base_font, text="Показать результаты по классам")
                 bt.configure(command=lambda button=bt: self.showResult(button.master))
@@ -175,30 +321,540 @@ class classResult(tk.Frame):
             row = tk.Frame(master=self, bg="white", highlightbackground=light_green, highlightthickness=3,
                            highlightcolor=light_green)
             row.grid(sticky="ew", row=i+1)
-            print(self.classes)
             lb = tk.Label(master=row, font=base_font, text=list(self.classes.keys())[i], bg="white", wraplength=300)
             lb.pack(side=tk.LEFT, padx=(20, 0), fill=tk.X)
             bt = tk.Button(master=row, font=base_font, text="Показать результаты учеников")
-            bt.configure(command=lambda button=bt: self.showResult(button.master))
+            bt.configure(command=lambda button=bt: self.showResult(button.master, list(clases.values())[i]))
             bt.pack(side=tk.RIGHT, padx=(400, 0), fill=tk.X)
             tk.Label(master=row, bg="white", font=base_font,
                      text=f"Есть результат от {list(self.classes.values())[i]} "
                           f"из {clases[list(self.classes.keys())[i]]}").pack(side=tk.LEFT, padx=(20, 0))
 
-    def showResult(self, master):
-        pass
+    def showResult(self, master, class_count):
+        gi = master.grid_info()['row']
+
+        class_name = list(self.classes.keys())[gi-1]
+        class_name = re.sub(r'["]', '', class_name)
+        App.clear_frame(self.master)
+        studentsresult = studentsResults(self.master, class_name, class_count, self.name, self.full_name)
+        self.destroy()
 
 
-class studentsResult(tk.Frame):
-    def __init__(self, master=None):
+class studentsResults(tk.Frame):
+    def __init__(self, master, class_name, class_count, short_test_name, full_test_name):
         super().__init__(master)
 
         self.master = master
+        self.class_name = class_name
+        self.class_count = class_count
+        self.short_test_name = short_test_name
+        self.full_test_name = full_test_name
+        self.results = []
+        self.students_with_result = []
+        self.marks = ["\n" for i in range(self.class_count)]
         self.initUI()
         self.grid()
 
     def initUI(self):
-        pass
+
+        tk.Label(master=self, text=self.class_name, font=heading_font, bg="white",
+                 ).grid(row=0, column=1, pady=(10, 30))
+        tk.Label(master=self, text=self.full_test_name, font=heading_font, bg="white",
+                 wraplength=300).grid(row=0, column=2, pady=(10, 30))
+        tk.Button(master=self, text="Копировать столбец оценок", bg="light green", command=self.copyMarks).grid(
+            row=0, column=0, sticky="e", pady=(10, 30)
+        )
+
+        for file_path in os.listdir("Результаты"):
+            if file_path.split(sep="(")[0].split(sep="/")[-1] != self.short_test_name:
+                continue
+            file = open(f"Результаты/{file_path}")
+            fio = file.readline()[:-1]
+            klas = file.readline()[:-1]
+            if klas == self.class_name:
+                self.students_with_result.append(fio)
+                data = file.readlines()
+                data = [data[i][:-1] for i in range(len(data))]
+                self.results.append(data)
+            file.close()
+        cnn = sqlite3.connect("marks.db")
+        curs = cnn.cursor()
+
+        conn = sqlite3.connect("classes.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM students WHERE class=?", (self.class_name,))
+        classes_data = cursor.fetchall()
+        conn.close()
+        all_students = [classes_data[i][1] for i in range(len(classes_data))]
+        for i in range(len(all_students)):
+            row = tk.Frame(master=self, bg="white", highlightbackground=light_green, highlightthickness=3,
+                           highlightcolor=light_green)
+            row.grid(sticky="ew", row=i+1)
+            lb = tk.Label(master=row, font=base_font, text=all_students[i], bg="white", wraplength=300)
+            lb.pack(side=tk.LEFT, padx=(20, 0), fill=tk.X)
+            if all_students[i] in self.students_with_result:
+                index = self.students_with_result.index(all_students[i])
+                curs.execute("SELECT * FROM marks WHERE test_name=? AND class=? AND student=?",
+                             (self.full_test_name, self.class_name, all_students[i]))
+                res = curs.fetchall()
+                if len(res) == 0:
+                    mark = "\n"
+                else:
+                    mark = res[0][-1]
+
+                l = tk.Label(master=row, bg="white", text="Оценка: "+str(mark))
+                l.pack(side=tk.RIGHT, padx=(10, 0), fill=tk.X)
+                if mark == 5:
+                    l.config(fg="green")
+                elif mark == 4:
+                    l.config(fg="blue")
+                elif mark == 3:
+                    l.config(fg="yellow")
+                elif mark == 2:
+                    l.config(fg="red")
+                elif mark == 1:
+                    l.config(fg="red")
+                self.marks[i] = str(mark)+"\n"
+                bt = tk.Button(master=row, font=base_font, text="Работа ученика", bg="light green")
+                bt.configure(command=lambda button=bt: self.showResult(button.master, index))
+                bt.pack(side=tk.RIGHT, padx=(20, 0), fill=tk.X)
+            else:
+                tk.Label(master=row, fg="red", bg="white", text="Результат ещё не получен").pack(
+                    side=tk.RIGHT, padx=(400, 0), fill=tk.X)
+
+    def showResult(self, master, index):
+
+        student = self.students_with_result[index]
+
+        App.clear_frame(self.master)
+        result = Result(self.master, self.short_test_name,
+                                        self.full_test_name, self.class_name, student, self.results[index][1:])
+        self.destroy()
+
+    def copyMarks(self):
+        l = [self.marks[i] for i in range(self.class_count)]
+        r = tk.Tk()
+        r.withdraw()
+        r.clipboard_clear()
+        r.clipboard_append("".join(l))
+        r.update()
+        r.destroy()
+
+
+class Result(tk.Frame):
+    def __init__(self, master, short_test_name, full_test_name, class_name, student_name, result):
+        super().__init__(master)
+
+        self.short_test_name = short_test_name
+        self.full_test_name = full_test_name
+        self.class_name = class_name
+        self.count_q = 0
+        self.student_name = student_name
+        self.result = result
+
+        self.task_frame = tk.Frame(master=self, bg=light_green, highlightbackground="green", highlightcolor="green",
+                                   highlightthickness=3)
+
+        self.current_tsk_q = 0
+        self.current_tsk_a = 0
+        self.current_tsk_v = 0
+        self.current_var = 0
+
+        self.current_type = None
+        self.current_task = ""
+
+        self.current_flags_list = []
+        self.current_variants_list = []
+
+        self.current_answer = ""
+        self.current_err = 0
+
+        self.marks = ["" for i in range(1000)]
+        self.max_points = ["" for i in range(1000)]
+        self.types = [None for i in range(1000)]
+        self.tasks = [None for i in range(1000)]
+
+        self.variants = [None for i in range(1000)]
+        self.flags = [None for i in range(1000)]
+
+        self.answers = [None for i in range(1000)]
+        self.errors = [None for i in range(1000)]
+
+        self.current = 1
+
+        self.final_mark = None
+
+        self.initUI()
+        self.grid()
+
+    def initUI(self):
+
+        conn = sqlite3.connect("tests.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM tests WHERE test_name=?", [(self.full_test_name)])
+        data = cursor.fetchone()
+        i, name, self.count_q = data
+
+        cursor.execute("SELECT * FROM types WHERE test_name=?;", [(self.full_test_name)])
+        types = cursor.fetchall()
+        cursor.execute("SELECT * FROM tasks_with_answers WHERE test_name=?;", [(self.full_test_name)])
+        tasks_with_answers = cursor.fetchall()
+        cursor.execute("SELECT * FROM tasks_with_variants WHERE test_name=?;", [(self.full_test_name)])
+        tasks_with_variants = cursor.fetchall()
+        cursor.execute("SELECT * FROM variants WHERE test_name=?;", [(self.full_test_name)])
+        variants = cursor.fetchall()
+        cursor.execute("SELECT * FROM tasks_with_questions WHERE test_name=?;", [(self.full_test_name)])
+        tasks_with_questions = cursor.fetchall()
+        cnn = sqlite3.connect("marks.db")
+        curs = cnn.cursor()
+        for i in range(self.count_q):
+            if types[i][2] == 0:
+                self.types[i] = 0
+                self.tasks[i] = tasks_with_variants[self.current_tsk_v][2]
+                count_v = tasks_with_variants[self.current_tsk_v][3]
+                vrs = []
+                fgs = []
+                for j in range(count_v):
+                    vrs.append(variants[self.current_var][2])
+                    fgs.append(variants[self.current_var][3])
+                    self.current_var += 1
+                self.variants[i] = vrs
+                self.flags[i] = fgs
+                self.current_tsk_v += 1
+            elif types[i][2] == 1:
+                self.types[i] = 1
+                self.tasks[i] = tasks_with_answers[self.current_tsk_a][2]
+                self.answers[i] = tasks_with_answers[self.current_tsk_a][3]
+                self.errors[i] = tasks_with_answers[self.current_tsk_a][4]
+                self.current_tsk_a += 1
+            elif types[i][2] == 2:
+                self.types[i] = 2
+                self.tasks[i] = tasks_with_questions[self.current_tsk_q][2]
+                self.current_tsk_q += 1
+
+            curs.execute("SELECT * FROM points WHERE test_name=? AND class=? AND student=? AND task=?",
+                         (self.full_test_name, self.class_name, self.student_name, i + 1))
+            rs = curs.fetchall()
+
+            if len(rs) == 0:
+                curs.execute("SELECT * FROM points WHERE test_name=? AND class=? AND task=?",
+                             (self.full_test_name, self.class_name, i + 1))
+                res = curs.fetchall()
+                if len(res) == 0:
+                    self.max_points[i] = ""
+                    self.marks[i] = ""
+                else:
+                    self.max_points[i] = res[0][-2]
+                    self.marks[i] = ""
+            else:
+                self.max_points[i] = rs[0][-2]
+                self.marks[i] = rs[0][-1]
+
+
+
+
+        curs.execute("SELECT * FROM marks WHERE test_name=? AND class=? AND student=?",
+                     (self.full_test_name, self.class_name, self.student_name))
+        res = curs.fetchall()
+        if len(res) == 0:
+            mark = ""
+        else:
+            mark = res[0][-1]
+
+
+
+
+
+
+
+        first = tk.Frame(master=self)
+        first.grid(row=0, column=0, sticky="w")
+        tk.Label(master=first, font=base_font, text="Работа по теме").grid(
+            row=0, column=0, padx=(20, 0), pady=(20, 0), sticky='w')
+        tk.Label(master=first, font=heading_font, bg="white",
+                 text=self.full_test_name, wraplength=200).grid(
+            row=1, column=0, padx=(20, 0), pady=(20, 0), sticky="s"
+        )
+        tk.Label(master=first, font=base_font, text="Количество вопросов").grid(
+            row=0, column=1, padx=(20, 0), pady=(20, 0), sticky="w"
+        )
+        tk.Label(master=first, font=heading_font, bg="white", text=self.count_q).grid(
+            row=1, column=1, padx=(20, 0), pady=(20, 0), sticky="w"
+        )
+        second = tk.Frame(master=self)
+        second.grid(row=0, column=1, sticky="w")
+        tk.Label(master=second, font=base_font, text="ФИО ученика").grid(
+            row=0, column=0, padx=(20, 0), pady=(20, 0), sticky="w")
+        tk.Label(master=second, font=heading_font, bg="white",
+                 text=self.student_name, wraplength=200).grid(
+            row=1, column=0, padx=(20, 0), pady=(20, 0), sticky="w"
+        )
+        tk.Label(master=second, text="Класс", font=base_font).grid(
+            row=0, column=1, padx=(20, 0), pady=(20, 0), sticky="w"
+        )
+        tk.Label(master=second, font=heading_font, bg="white",
+                 text=self.class_name, wraplength=200).grid(
+            row=1, column=1, padx=(20, 0), pady=(20, 0), sticky="w"
+        )
+        tk.Label(master=second, text="Оценка", font=base_font).grid(
+            row=0, column=2, padx=(20, 0), pady=(20, 0), sticky="w"
+        )
+        tk.Label(master=second, font=heading_font, bg="white",
+                 text="Не проверено" if mark == "" else mark, wraplength=200).grid(
+            row=1, column=2, padx=(20, 0), pady=(20, 0), sticky="w"
+        )
+        save_bt = tk.Button(master=second, text="Закончить проверку",
+                            command=self.save_work,
+                            bg="light green", font=base_font)
+        save_bt.grid(column=2, row=0, pady=(40, 0), padx=(100, 5), sticky="w")
+
+
+        self.generate_task()
+
+
+    def generate_task(self):
+        self.task_frame.grid(row=2, column=1, pady=(100, 5))
+        buttons_frame = tk.Frame(master=self.task_frame, highlightbackground=light_green,
+                                 highlightcolor=light_green, highlightthickness=3)
+        next_bt = tk.Button(master=buttons_frame, text="Вперед", font=base_font, command=self.go_next)
+        previous_bt = tk.Button(master=buttons_frame, text="Назад", font=base_font, command=self.go_previous)
+        next_bt.grid(row=0, column=1)
+        previous_bt.grid(row=0, column=0)
+        buttons_frame.grid(row=0, column=0, pady=(5, 20), padx=(5, 0), sticky="w")
+        lb = tk.Label(master=self.task_frame, text=f"Вопрос №{self.current}", font=base_font)
+        lb.grid(row=0, column=1, pady=(0, 10), padx=(5, 0), sticky="w")
+        mark_fr = tk.Frame(master=self.task_frame, bg=light_green)
+        mark_fr.grid(row=1, column=0, columnspan=2, sticky="w")
+        tk.Label(master=mark_fr, font=base_font, text="Максимум баллов за задание", bg=light_green).grid(
+            row=0, column=0, padx=(5, 0), pady=(5, 20), sticky="w"
+        )
+        max_txt = tk.Text(master=mark_fr, font=base_font, wrap=tk.WORD, width=10, height=1)
+        max_txt.insert(1.0, self.max_points[self.current - 1])
+        max_txt.grid(row=0, column=1, padx=(5, 0), pady=(5, 20), sticky="w")
+        tk.Label(master=mark_fr, font=base_font, text="Оценка задания в баллах", bg=light_green).grid(
+            row=1, column=0, padx=(5, 0), pady=(5, 20), sticky="w"
+        )
+        mark_txt = tk.Text(master=mark_fr, font=base_font, wrap=tk.WORD, width=10, height=1)
+        mark_txt.insert(1.0, self.marks[self.current-1])
+        mark_txt.grid(row=1, column=1, padx=(5, 0), pady=(5, 20), sticky="w")
+        save_bt = tk.Button(master=self.task_frame, text="Сохранить оценку\nзадания", command=lambda: self.save_mark(int(mark_txt.get(1.0, tk.END)), int(max_txt.get(1.0, tk.END))),
+                            bg="light green", font=base_font)
+        save_bt.grid(column=2, row=0, pady=(5, 20), padx=(0, 5), sticky="e")
+        tk.Label(master=self.task_frame, text="Условие задания", bg=light_green, font=base_font).grid(
+            row=2, column=0, padx=(5, 0), pady=(5, 20), sticky="w"
+        )
+        txt = tk.Text(master=self.task_frame, font=base_font, wrap=tk.WORD, width=40, height=6)
+        txt.insert(1.0,  self.tasks[self.current - 1])
+        txt.grid(row=2, column=1, padx=(5, 0), pady=(5, 20), sticky="w")
+        tp = self.types[self.current - 1]
+        if tp is not None:
+            if tp == 0:
+                n = len(self.variants[self.current - 1])
+                vr_frame = tk.Frame(master=self.task_frame, bg=light_green, highlightbackground=light_green,
+                                    highlightcolor=light_green, highlightthickness=3)
+                vr_frame.grid(row=3, column=0, sticky="w")
+                if self.result[self.current - 1] is not None:
+                    flg_list = self.result[self.current - 1].split(sep="=")[0].split(sep=":")[-1].split()
+                else:
+                    flg_list = [0 for i in range(n)]
+                count_of_corrects = self.flags[self.current - 1].count(1)
+                count_of_correct_ans = 0
+                count_of_wrong_ans = 0
+                for i in range(n):
+
+                    tk.Label(text=f"{i + 1})", font=base_font, master=vr_frame, bg=light_green).grid(
+                        row=i, column=0, padx=(5, 0), pady=(5, 0), sticky="w")
+                    lb = tk.Label(master=vr_frame, font=base_font,
+                                  text=self.variants[self.current - 1][i], wraplength=80, bg="white")
+                    lb.grid(
+                        row=i, column=1, padx=(5, 0), pady=(5, 0), sticky="w"
+                    )
+
+                    #corrects = len([self.variants[i][j] for j in range(n) if self.flags[i][j] == 1])
+
+                    if flg_list[i] == "0" and self.flags[self.current-1][i] == 0:
+                        pass
+                    elif flg_list[i] == '0' and self.flags[self.current-1][i] == 1:
+                        lb.config(bg="light green")
+                    elif flg_list[i] == '1' and self.flags[self.current-1][i] == 0:
+                        count_of_wrong_ans += 1
+                        lb.config(bg="red")
+                    else:
+                        count_of_correct_ans += 1
+                        lb.config(bg="light green")
+                    var1 = tk.BooleanVar()
+                    var1.set(flg_list[i])
+                    c1 = tk.Checkbutton(master=vr_frame, variable=var1, onvalue=1, offvalue=0, bg=light_green)
+                    c1.grid(row=i, column=2)
+                    message = f"Всего вариантов ответа: {n}\n" \
+                              f"Всего правильных вариантов ответа: {count_of_corrects}\n" \
+                              f"Число данных правильных вариантов ответа: {count_of_correct_ans}\n" \
+                              f"Число данных ошибочных вариантов ответа: {count_of_wrong_ans}"
+
+                    txt = tk.Text(master=self.task_frame, wrap=tk.WORD,
+                                  width=60, height=4)
+                    txt.insert(1.0, message)
+                    txt.grid(row=3, column=1, padx=(10, 5), pady=(10, 0))
+                    self.current_flags_list.append(var1)
+
+            elif tp == 1:
+                fr = tk.Frame(master=self.task_frame, bg=light_green, highlightbackground=light_green,
+                              highlightcolor=light_green, highlightthickness=3)
+                fr.grid(row=11, column=0, sticky="w", columnspan=2)
+                tk.Label(master=self.task_frame, text="Правильный ответ", font=base_font, bg=light_green).grid(
+                    row=3, column=0, padx=(5, 0), pady=(5, 0), sticky="w"
+                )
+                tk.Label(master=self.task_frame, text="Ответ ученика", font=base_font, bg=light_green).grid(
+                    row=4, column=0, padx=(5, 0), pady=(5, 0), sticky="w"
+                )
+                correct_tx = tk.Text(master=self.task_frame, font=base_font, width=6, height=1, wrap=tk.WORD)
+                correct_tx.grid(row=3, column=1, padx=(5, 0), pady=(0, 5), sticky="w")
+                correct_tx.insert(1.0, self.answers[self.current - 1])
+                ans_tx = tk.Text(master=self.task_frame, font=base_font, width=6, height=1, wrap=tk.WORD)
+                ans_tx.grid(row=4, column=1, padx=(5, 0), pady=(0, 5), sticky="w")
+                ans_tx.insert(1.0, self.result[self.current - 1].split(sep=":")[-1])
+                err_tx = tk.Text(master=fr, font=base_font, width=60, height=1)
+                err_tx.grid(row=5, column=0, padx=(5, 0), pady=(0, 5), sticky="w")
+                err_tx.insert(1.0, "Допустимая погрешность ответа в %: " + str(self.errors[self.current - 1]))
+                ans_err = tk.Text(master=fr, font=base_font, width=60, height=1)
+                ans_err.grid(row=6, column=0, padx=(5, 0), pady=(0, 5), sticky="w")
+                try:
+                    err = (abs(float(self.result[self.current - 1].split(sep=":")[-1])-float(self.answers[self.current-1]))/float(self.answers[self.current-1])*100)
+                except ZeroDivisionError:
+                    err = "Infinity"
+                ans_err.insert(1.0, "Погрешность ответа ученика в %: " + str(err))
+
+            elif tp == 2:
+                tk.Label(master=self.task_frame, text="Ответ ученика", font=base_font, bg=light_green).grid(
+                    row=3, column=0, padx=(5, 0), pady=(5, 0), sticky="w"
+                )
+                txt = tk.Text(master=self.task_frame, font=base_font, wrap=tk.WORD, width=60, height=6)
+                txt.insert(1.0, self.result[self.current - 1].split(sep=":")[-1])
+                txt.grid(row=3, column=1, padx=(5, 0), pady=(10, 5), sticky="w", columnspan=2)
+        buttons_frame = tk.Frame(master=self.task_frame, highlightbackground=light_green,
+                                 highlightcolor=light_green, highlightthickness=3)
+        next_bt = tk.Button(master=buttons_frame, text="Вперед", font=base_font, command=self.go_next)
+        previous_bt = tk.Button(master=buttons_frame, text="Назад", font=base_font, command=self.go_previous)
+        next_bt.grid(row=0, column=1)
+        previous_bt.grid(row=0, column=0)
+        buttons_frame.grid(row=0, column=0, pady=(5, 20), padx=(5, 0), sticky="w")
+
+    def save_mark(self, mark, max_point):
+        self.marks[self.current-1] = mark
+        self.max_points[self.current-1] = max_point
+
+    def go_next(self):
+        if self.current == self.count_q:
+            pass
+        else:
+            self.current += 1
+            App.clear_frame(self.task_frame)
+
+
+            self.generate_task()
+
+    def go_previous(self):
+        if self.current == 1:
+            pass
+        else:
+            self.current -= 1
+            App.clear_frame(self.task_frame)
+
+            self.current_flags_list = []
+            self.current_answer = ""
+            self.current_ans = ""
+
+            self.generate_task()
+
+    def save_work(self):
+        answer = mb.askokcancel(title="Сохранение", message="Сохранить проверку? Нажмите OK, если уверены, "
+                                                            "что все оценки заполнены полностью")
+        if answer:
+
+            App.clear_frame(self.task_frame)
+            sum_max = sum(self.max_points[:self.count_q])
+            sum_result = sum(self.marks[:self.count_q])
+
+            tk.Label(master=self.task_frame, font=base_font,
+                     text="Максимальное количество баллов", bg=light_green).grid(
+                row=0, column=0, padx=(5, 0), pady=(5, 0), sticky="w")
+            tk.Label(master=self.task_frame, font=heading_font,
+                     text=sum_max, bg=light_green).grid(
+                row=0, column=1, padx=(5, 0), pady=(5, 0), sticky="w")
+            tk.Label(master=self.task_frame, font=base_font,
+                     text="Количество баллов ученика", bg=light_green).grid(
+                row=1, column=0, padx=(5, 0), pady=(5, 0), sticky="w")
+            tk.Label(master=self.task_frame, font=heading_font,
+                     text=sum_result, bg=light_green).grid(
+                row=1, column=1, padx=(5, 0), pady=(5, 0), sticky="w")
+            tk.Label(master=self.task_frame, font=base_font,
+                     text="Доля набранных баллов от максимума, %", bg=light_green).grid(
+                row=2, column=0, padx=(5, 0), pady=(5, 0), sticky="w")
+            tk.Label(master=self.task_frame, font=heading_font,
+                     text=sum_result/sum_max*100, bg=light_green).grid(
+                row=2, column=1, padx=(5, 0), pady=(5, 0), sticky="w")
+            tk.Label(master=self.task_frame, text="Оценка по пятибальной шкале", font=base_font, bg=light_green).grid(
+                row=3, column=0, padx=(5, 0), pady=(5, 0), sticky="w"
+            )
+            lbox = tk.Listbox(master=self.task_frame, width=2, height=5)
+            lbox.grid(row=3, column=1, padx=(5, 0), pady=(0, 5), sticky="w")
+            types = [i for i in range(1, 6)]
+            for i in types:
+                lbox.insert(tk.END, i)
+
+            save_bt = tk.Button(master=self.task_frame, text="Сохранить оценку",
+                                command=lambda: self.load_marks(lbox.curselection()[0]+1),
+                                bg="light green", font=base_font)
+            save_bt.grid(column=2, row=0, pady=(5, 0), padx=(40, 5), sticky="e")
+
+
+
+    def load_marks(self, mark):
+
+        answer = mb.askokcancel(title="Сохранение", message="Сохранить оценку? Нажмите OK, если выбрали оценку")
+        if answer:
+            App.clear_frame(self.master)
+            cnn = sqlite3.connect("marks.db")
+            curs = cnn.cursor()
+            curs.execute("CREATE TABLE IF NOT EXISTS marks(test_name text, class text, student text, mark integer);")
+            cnn.commit()
+            curs.execute("SELECT * FROM marks WHERE test_name=? AND class=? AND student=?",
+                         (self.full_test_name, self.class_name, self.student_name))
+            if len(curs.fetchall()) == 0:
+                curs.execute("INSERT INTO marks(test_name, class, student, mark) VALUES(?, ?, ?, ?)",
+                             (self.full_test_name, self.class_name, self.student_name, mark))
+                cnn.commit()
+            else:
+                curs.execute("UPDATE marks SET mark=? WHERE test_name=? AND class=? AND student=?",
+                             (mark, self.full_test_name, self.class_name, self.student_name))
+                cnn.commit()
+            curs.execute("CREATE TABLE IF NOT EXISTS points(test_name text, class text, student text, task integer, max integer, score integer);")
+            cnn.commit()
+            curs.execute("SELECT * FROM points WHERE test_name=? AND class=? AND student=?",
+                         (self.full_test_name, self.class_name, self.student_name))
+            points_rows = [(self.full_test_name, self.class_name, self.student_name, i+1, self.max_points[i], self.marks[i])
+                           for i in range(self.count_q)]
+            if len(curs.fetchall()) == 0:
+                curs.executemany("INSERT INTO points(test_name, class, student, task, max, score) VALUES(?, ?, ?, ?, ?, ?)",
+                             points_rows)
+                cnn.commit()
+            else:
+                for i in range(self.count_q):
+                    curs.execute("DELETE FROM points WHERE WHERE test_name=? AND class=? AND student=? AND task=?",
+                                 (self.full_test_name, self.class_name, self.student_name, i+1))
+                    cnn.commit()
+                    curs.execute(
+                        "INSERT INTO points(test_name, class, student, task, max, score) VALUES(?, ?, ?, ?, ?, ?)",
+                        points_rows[i])
+                    cnn.commit()
+
+
+
+
+
+
+
+
 
 
 
@@ -232,6 +888,7 @@ class testList(tk.Frame):
 
         self.show_bts = []
         self.file_bts = []
+        self.names = []
 
         self.master = master
         self.grid()
@@ -251,8 +908,10 @@ class testList(tk.Frame):
 
             cursor.execute("SELECT * FROM tests;")
             data = cursor.fetchall()
-
+            data = data[::-1]
             tests_count = len(data)
+            self.names = [data[i][1] for i in range(tests_count)]
+
             for i in range(tests_count):
                 test_frame = tk.Frame(master=self, bg="white",
                                   highlightbackground=light_green, highlightthickness=3,
@@ -275,11 +934,11 @@ class testList(tk.Frame):
 
     def uploadButton(self, master):
         gi = master.grid_info()['row']
-        self.uploadFile(gi+1)
+        self.uploadFile(self.names[gi])
 
     def testButton(self, master):
         gi = master.grid_info()['row']
-        self.showTest(gi+1)
+        self.showTest(self.names[gi])
 
 
     def on_click_fl_bt(self, event):
@@ -292,21 +951,21 @@ class testList(tk.Frame):
         bt_ind = list(button_text.split())[-1][-1]
         self.showTest(bt_ind)
 
-    def showTest(self, index):
+    def showTest(self, name):
         App.clear_frame(self.master)
-        test = Test(self.master, index)
+        test = Test(self.master, name)
         self.destroy()
 
 
-    def uploadFile(self, index):
+    def uploadFile(self, name):
 
         conn = sqlite3.connect("tests.db")
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM tests WHERE id=?", [(index)])
+        cursor.execute("SELECT * FROM tests WHERE test_name=?", [(name)])
         i, name, count_q = cursor.fetchone()
         if "tests" not in os.listdir():
             os.makedirs("tests")
-        test_name = name[:200]
+        test_name = name[:100]
         test_name = re.sub(r'[/\\?%*:|"<>.,]', "", test_name)
         test_name = re.sub(r'[\n]', "", test_name)
 
@@ -333,10 +992,6 @@ class testList(tk.Frame):
         variants = [(variants[i][1], variants[i][2], variants[i][3]) for i in range(len(variants))]
 
         conn.close()
-
-
-
-
 
         test_path = str(pathlib.Path().resolve())+f"\\tests\\{test_name}.db"
 
@@ -384,10 +1039,10 @@ class testList(tk.Frame):
 
 
 class Test(tk.Frame):
-    def __init__(self, master, index):
+    def __init__(self, master, test_name):
         super().__init__(master)
         self.master = master
-        self.index = index
+        self.test_name = test_name
         self.name_text = tk.Text(master=self, width=30, height=4, wrap=tk.WORD)
         self.count_text = tk.Text(master=self, width=10, height=1)
         self.task_frame = tk.Frame(master=self, bg=light_green, highlightbackground="green", highlightcolor="green",
@@ -425,7 +1080,7 @@ class Test(tk.Frame):
     def initUI(self):
         conn = sqlite3.connect("tests.db")
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM tests WHERE id=?", [(self.index)])
+        cursor.execute("SELECT * FROM tests WHERE test_name=?", [(self.test_name)])
         data = cursor.fetchone()
         i, name, count_q = data
 
@@ -458,9 +1113,11 @@ class Test(tk.Frame):
                 self.tasks[i] = tasks_with_answers[self.current_tsk_a][2]
                 self.answers[i] = tasks_with_answers[self.current_tsk_a][3]
                 self.errors[i] = tasks_with_answers[self.current_tsk_a][4]
+                self.current_tsk_a += 1
             elif types[i][2] == 2:
                 self.types[i] = 2
                 self.tasks[i] = tasks_with_questions[self.current_tsk_q][2]
+                self.current_tsk_q += 1
 
 
         tk.Label(text="Название работы", master=self, font=base_font).grid(
@@ -539,7 +1196,7 @@ class Test(tk.Frame):
                               highlightcolor=light_green, highlightthickness=3)
                 fr.grid(row=11, column=0, sticky="w", columnspan=2)
                 for i in range(count_vrs):
-                    tx = tk.Text(master=fr, font=base_font, width=60, height=4)
+                    tx = tk.Text(master=fr, font=base_font, width=60, height=4, wrap=tk.WORD)
                     tx.grid(row=i, column=0, padx=(5, 0), pady=(0, 5), sticky="w")
                     tx.insert(1.0, f"{i + 1}) " + self.variants[self.current - 1][i] + (
                         " +" if self.flags[self.current - 1][i] == 1 else " -"))
@@ -744,7 +1401,7 @@ class newTest(tk.Frame):
 
             self.types[self.current-1] = 0
             self.tasks[self.current-1] = self.current_task.get(1.0, tk.END)
-            vrs = [self.current_variants_list[i].get(1.0, tk.END)
+            vrs = [self.current_variants_list[i].get(1.0, tk.END)[:-1]
                              for i in range(len(self.current_variants_list))]
             self.variants[self.current-1] = vrs
             fgs = [int(self.current_flags_list[i].get()) for i in range(len(self.current_flags_list))]
@@ -867,7 +1524,7 @@ class newTest(tk.Frame):
                               highlightcolor=light_green, highlightthickness=3)
                 fr.grid(row=11, column=0, sticky="w", columnspan=2)
                 for i in range(count_vrs):
-                    tx = tk.Text(master=fr, font=base_font, width=60, height=4)
+                    tx = tk.Text(master=fr, font=base_font, width=60, height=4, wrap=tk.WORD)
                     tx.grid(row=i, column=0, padx=(5, 0), pady=(0, 5), sticky="w")
                     tx.insert(1.0,  f"{i+1}) "+self.variants[self.current-1][i]+(" +" if self.flags[self.current-1][i] == 1 else " -"))
             elif tp == 1:
@@ -920,7 +1577,7 @@ class newTest(tk.Frame):
             for i in range(n):
                 tk.Label(text=f"{i+1})", font=base_font, master=vr_frame, bg=light_green).grid(row=i, column=0, padx=(5, 0),
                                                                                pady=(5, 0), sticky="w")
-                ent = tk.Text(master=vr_frame, width=30, height=2)
+                ent = tk.Text(master=vr_frame, width=30, height=2, wrap=tk.WORD)
                 ent.grid(row=i, column=1, sticky="w", padx=0, pady=(0, 5))
                 self.current_variants_list.append(ent)
                 var1 = tk.BooleanVar()
@@ -1128,10 +1785,6 @@ class Clas(tk.Frame):
             self.destroy()
 
 
-
-
-
-
 class newClass(tk.Frame):
     def __init__(self, master=None):
         super().__init__(master)
@@ -1197,8 +1850,46 @@ class newClass(tk.Frame):
         self.name_entry.grid(row=0, column=4, padx=10, pady=10)
         save_button = tk.Button(master=self.master, text="Сохранить класс", bg="light green", command=self.load_list,font=base_font)
         save_button.grid(row=0, column=5, padx=10, pady=10)
-        tk.Label(master=self.master, text="ФИО ученика", font=base_font).grid(row=1, column=0)
-        tk.Label(master=self.master, text="Email ученика", font=base_font).grid(row=1, column=2)
+        tk.Label(master=self.master, text="ФИО ученика", font=base_font).grid(row=1, column=0, padx=(10, 0))
+        paste_names_button = tk.Button(master=self.master, text="Вставить\nиз буфера",
+                                       command=lambda: self.paste_from_clipboard(1))
+        paste_names_button.grid(row=1, column=1, padx=(10, 0), sticky="w")
+        tk.Label(master=self.master, text="Email ученика", font=base_font).grid(row=1, column=2, padx=(10, 0))
+        paste_emails_button = tk.Button(master=self.master, text="Вставить\nиз буфера",
+                                       command=lambda: self.paste_from_clipboard(2))
+        paste_emails_button.grid(row=1, column=3, padx=(10, 0), sticky="w")
+
+    def paste_from_clipboard(self, tp):
+
+        r = tk.Tk()
+        r.withdraw()
+        data = r.clipboard_get().split(sep="\n")
+        
+        if tp == 1:
+            count = len(self.names) if len(self.names) < len(data) else len(data)
+            names_count = len(self.names)
+            if count == 0:
+                return
+            else:
+                for i in range(count):
+                    self.names[names_count-i-1].delete(1.0, tk.END)
+                    self.names[names_count-i-1].insert(1.0, data[i])
+
+        else:
+            count = len(self.emails) if len(self.emails) < len(data) else len(data)
+            emails_count = len(self.emails)
+
+            if count == 0:
+                return
+            else:
+                for i in range(count):
+                    self.emails[emails_count-1-i].delete(1.0, tk.END)
+                    self.emails[emails_count-1-i].insert(1.0, data[i])
+
+
+
+
+
 
 class ScrollableFrame(tk.Frame):
     def __init__(self, container, *args, **kwargs):
