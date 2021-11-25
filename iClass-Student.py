@@ -13,6 +13,9 @@ import base64
 light_green = "#C4F4CE"
 light_yellow = "#F5EBCF"
 base_font = ("Arial", 10)
+weight = "bold"
+heading_font = ("Arial", 15, weight)
+manual_font = ("Arial", 12)
 
 
 class App(tk.Frame):
@@ -63,7 +66,53 @@ class App(tk.Frame):
         dowloader = TestLoader(self.frame)
 
     def showManual(self):
-        pass
+        self.clear_frame(self.frame)
+        manual = Manual(self.frame)
+
+class Manual(tk.Frame):
+    def __init__(self, master=None):
+        super().__init__(master)
+        self.master = master
+        self.grid()
+        self.initUI()
+
+    def initUI(self):
+        tk.Label(master=self.master, font=heading_font, text="1. Заполение личных данных").grid(
+            row=0, column=0, sticky="w", padx=(0, 0))
+        paragraph_1 = """Для прохождения тестовых работ необходимо предварительно заполнить личные данные.
+1. Откройте раздел “Мой профиль” -> “Личные данные”.
+2. Заполните поля ФИО и класса с литерой. 
+3. Сохранить данные кнопкой “Сохранить”.
+"""
+        tk.Label(master=self.master, font=manual_font, text=paragraph_1, wraplength=900, justify="left").grid(
+            row=1, column=0, sticky="w", padx=(0, 0)
+        )
+
+        tk.Label(master=self.master, font=heading_font, text="2. Загрузка тестовой работы").grid(
+            row=2, column=0, sticky="w", padx=(0, 0))
+        paragraph_2 = """1. Откройте раздел “Проверочные работы” -> “Загрузить новую”.
+2. Выберите скачанный файл с тестом и нажмите “Открыть”.
+
+        """
+        tk.Label(master=self.master, font=manual_font, text=paragraph_2, wraplength=900, justify="left").grid(
+            row=3, column=0, sticky="w", padx=(0, 0)
+        )
+
+        tk.Label(master=self.master, font=heading_font, text="3. Прохождение теста").grid(
+            row=4, column=0, sticky="w", padx=(0, 0))
+        paragraph_3 = """1. Откройте раздел “Проверочные работы” -> “Новые работы”.
+2. Выберите работу и нажмите “Начать‘.
+3. Проходите задания, сохраняя ответ для каждого задания кнопкой “Сохранить ответ”.
+4. Завершите работу кнопкой “Закончить работу”.
+Список пройденных работ доступен в разделе “Проверочные работы” -> “Пройденные работы”.
+
+
+                """
+        tk.Label(master=self.master, font=manual_font, text=paragraph_3, wraplength=900, justify="left").grid(
+            row=5, column=0, sticky="w", padx=(0, 0)
+        )
+
+
 
 
 class Profile(tk.Frame):
@@ -196,7 +245,7 @@ class TestsList(tk.Frame):
                                                        "Введите их в разделе 'Мой профиль'->'Личные данные'")
             return
         gi = master.grid_info()['row']
-        name = self.names[gi]
+        name = self.names[gi].split(sep=") ")[-1]
         name = re.sub(r'["]', '', name)
         App.clear_frame(self.master)
         test = Test(self.master, name)
@@ -241,7 +290,7 @@ class Results(tk.Frame):
         name = self.names[gi]
         name = re.sub(r'["]', '', name)
         App.clear_frame(self.master)
-        result = Result(self.master, name)
+        #result = Result(self.master, name)
         self.destroy()
 
 
@@ -343,6 +392,7 @@ class Test(tk.Frame):
 
     def initUI(self):
         conn = sqlite3.connect("My tests/"+self.name+".db")
+
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM count_q")
         self.count_q = cursor.fetchone()[0]
@@ -424,7 +474,7 @@ class Test(tk.Frame):
             for i in range(n):
                 tk.Label(text=f"{i + 1})", font=base_font, master=vr_frame, bg=light_green).grid(
                     row=i, column=0, padx=(5, 0), pady=(5, 0), sticky="w")
-                tk.Label(master=vr_frame, font=base_font, text=self.variants[self.current-1][i], bg="white", wraplength=80).grid(
+                tk.Label(master=vr_frame, font=base_font, text=self.variants[self.current-1][i], bg="white", wraplength=200).grid(
                     row=i, column=1, padx=(5, 0), pady=(5, 0), sticky="w"
                 )
                 var1 = tk.BooleanVar()
@@ -504,10 +554,9 @@ class Test(tk.Frame):
             App.clear_frame(self.task_frame)
             for i in range(self.count_q):
                 fr = tk.Frame(master=self.task_frame, bg=light_green)
-                fr.grid(row=i, column=0, columnspan=2)
+                fr.grid(row=i, column=0, columnspan=2, sticky="w")
                 l = tk.Label(master=fr, text=f"Вопрос №{i+1}", font=base_font, bg=light_green)
-                l.grid(
-                    row=0, column=0, pady=(5, 0), padx=(5, 0))
+                l.grid(row=0, column=0, pady=(5, 0), padx=(5, 0))
 
                 if self.types[i] == 0:
                     n = len(self.variants[i])
@@ -519,22 +568,23 @@ class Test(tk.Frame):
                     for j in range(n):
                         tk.Label(text=f"{j + 1})", font=base_font, master=vr_frame, bg=light_green).grid(
                             row=j, column=0, padx=(5, 0), pady=(5, 0), sticky="w")
-                        lb = tk.Label(master=vr_frame, font=base_font, text=self.variants[i][j], bg=light_green)
+                        lb = tk.Label(master=vr_frame, font=base_font, text=self.variants[i][j], wraplength="200", bg=light_green)
                         lb.grid(
                             row=j, column=1, padx=(5, 0), pady=(5, 0), sticky="w"
                         )
                         if self.results[i][j] == 0 and self.flags[i][j] == 0:
                             pass
                         elif self.results[i][j] == 0 and self.flags[i][j] == 1:
-                            lb.config(bg="light green")
+                            #lb.config(bg="light green")
+                            pass
                         elif self.results[i][j] == 1 and self.flags[i][j] == 0:
                             points -= 1
-                            lb.config(bg="red")
+                            #lb.config(bg="red")
                         else:
                             points += 1
-                            lb.config(bg="light green")
-                    res_label = tk.Label(master=fr, bg=light_green, text=f"{points} из {corrects} баллов")
-                    res_label.grid(row=0, column=1, padx=(50, 0), pady=(5, 0))
+                            #lb.config(bg="light green")
+                    # res_label = tk.Label(master=fr, bg=light_green, text=f"{points} из {corrects} баллов")
+                    # res_label.grid(row=0, column=1, padx=(50, 0), pady=(5, 0))
                 else:
                     tk.Label(master=fr, text="Задания с письменным ответом проверяются учителем",
                              bg=light_green).grid(

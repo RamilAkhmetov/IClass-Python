@@ -108,12 +108,93 @@ class Manual(tk.Frame):
         self.initUI()
 
     def initUI(self):
-        tk.Label(master=self.master, font=heading_font, text="Описание программы").grid(
+        tk.Label(master=self.master, font=heading_font, text="1. Создание новой работы").grid(
             row=0, column=0, sticky="w", padx=(0, 0))
-        paragraph_1 = """\tiClass - это приложение для создания тренировочных работ. """
+        paragraph_1 = """1. Для создания новой работы откройте в панели меню раздел “Проверочные работы”. 
+2. Далее откройте “Создать новую работу”. 
+3. В открывшемся конструкторе заполните поля названия работы и количества вопросов.
+4. Кликнете на кнопку “Применить”.
+5. В появившемся окне выберите тип задания из списка.
+6. Кликнете на кнопку “Применить” в малом окне.
+7. Заполните данные о задании.
+8. Сохраните задание, нажав на кнопку “Сохранить вопрос”
+9. Вы может перемещаться между заданиями теста кнопками “Вперед” и “Назад”.
+10. Сохраните работу кнопкой “Сохранить работу”.
+"""
         tk.Label(master=self.master, font=manual_font, text=paragraph_1, wraplength=900, justify="left").grid(
             row=1, column=0, sticky="w", padx=(0, 0)
         )
+
+        tk.Label(master=self.master, font=heading_font, text="2. Редактирование работы").grid(
+            row=2, column=0, sticky="w", padx=(0, 0))
+        paragraph_2 = """1. Для редактирования работы откройте раздел меню “Проверочные работы” -> “Показать”. 
+2. Из появившегося списка выберите нужную работу и нажмите кнопку “Просмотреть/Редактировать”.
+3. Внесите необходимые изменения.
+4. Сохраняйте изменения в заданиях кнопкой “Сохранить вопрос”.
+5. Сохраните работу кнопкой “Сохранить работу”.
+"""
+        tk.Label(master=self.master, font=manual_font, text=paragraph_2, wraplength=900, justify="left").grid(
+            row=3, column=0, sticky="w", padx=(0, 0)
+        )
+        tk.Label(master=self.master, font=heading_font, text="3. Заполнение данных класса").grid(
+            row=4, column=0, sticky="w", padx=(0, 0))
+        paragraph_3 = """1. Откройте раздел “Мои классы” -> “Создать новый”.
+2. В появившемся разделе заполните поля названия класса (номер и
+литера; например, “11В”). 
+3. Нажмите кнопку “Применить”.
+4. Вы можете вставить столбец с ФИО учеников или из email-адресов из
+буфера обмена, нажав на кнопку “Вставить из буфера”.
+5. Сохраните класс кнопкой “Сохранить класс”
+
+        """
+        tk.Label(master=self.master, font=manual_font, text=paragraph_3, wraplength=900, justify="left").grid(
+            row=5, column=0, sticky="w", padx=(0, 0)
+        )
+        tk.Label(master=self.master, font=heading_font, text="4. Редактирование данных класса").grid(
+            row=6, column=0, sticky="w", padx=(0, 0))
+        paragraph_4 = """1. Откройте раздел “Мои классы” -> “Показать”.
+2. В появившемся разделе Вы увидите список созданных классов. Выберите нужный и кликнете на его название.
+3. Внесите необходимые изменения в данные класса.
+4. Сохраните изменения, нажав на кнопку “Сохранить класс”.
+
+                """
+        tk.Label(master=self.master, font=manual_font, text=paragraph_4, wraplength=900, justify="left").grid(
+            row=7, column=0, sticky="w", padx=(0, 0)
+        )
+
+        tk.Label(master=self.master, font=heading_font, text="5. Загрузка результата ученика").grid(
+            row=8, column=0, sticky="w", padx=(0, 0))
+        paragraph_5 = """1. Откройте раздел меню “Проверочные работы” -> “Загрузить результат”.
+ 2. В появившемся окне проводника найдите скачанный файл с результатом ученика, выберите его и нажмите “Открыть”.
+
+                        """
+        tk.Label(master=self.master, font=manual_font, text=paragraph_5, wraplength=900, justify="left").grid(
+            row=9, column=0, sticky="w", padx=(0, 0)
+        )
+
+        tk.Label(master=self.master, font=heading_font, text="6. Просмотр и проверка работ учащихся").grid(
+            row=10, column=0, sticky="w", padx=(0, 0))
+        paragraph_6 = """1. Откройте раздел “Проверочные работы” -> “Результаты”.
+	Вам откроется список проверочных работ, для которых загружен результат хотя бы одного ученика. 
+2. Выберите нужную работу и кликнете “Показать результаты по классам”.
+	Вам откроется список классов, ученики которых прислали результат по данной работе.
+3. Выберите нужный класс и кликнете “Показать результаты учеников”.
+Вам откроется список учеников выбранного класса. Для каждого
+ученика указан статус проверки: “Оценка: ”для ученика с результатом или “Результат ещё не получен”.
+4. Выберите ученика с результатом. Кликнете на кнопку “Работа ученика”.
+Вам откроется окно с тестовой работой ученика. Для каждого задания
+показано условие. Для задания с выбором правильных вариантов ответа приводится количество правильных и ложных ответов, данных учеником, а также правильных ответов за задание. 
+Для задания с числовым ответом показаны правильный ответ на задачу, ответ ученика и рассчитанная погрешность ответа ученика. Для задания с развернутым ответом показано текстовое поле с ответом ученика.
+5. Для каждого задания укажите максимальное количество баллов за задание и количество баллов, набранных учеником.
+6. По окончании проверки нажмите “Закончить проверку”.
+Откроется окно с информацией о сумме набранных учеником баллов и их процентном отношении к максимальному количеству баллов за тест.
+7. Выберите оценку по пятибалльной шкале из списка и нажмите “Сохранить оценку”. """
+        tk.Label(master=self.master, font=manual_font, text=paragraph_6, wraplength=900, justify="left").grid(
+            row=11, column=0, sticky="w", padx=(0, 0)
+        )
+
+
+
 
 class EmailData(tk.Frame):
     def __init__(self, master):
@@ -377,15 +458,19 @@ class studentsResults(tk.Frame):
                 data = [data[i][:-1] for i in range(len(data))]
                 self.results.append(data)
             file.close()
-        cnn = sqlite3.connect("marks.db")
-        curs = cnn.cursor()
+        if "marks.db" in os.listdir():
 
+            cnn = sqlite3.connect("marks.db")
+            curs = cnn.cursor()
+            f = True
+        else:
+            f = False
         conn = sqlite3.connect("classes.db")
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM students WHERE class=?", (self.class_name,))
         classes_data = cursor.fetchall()
         conn.close()
-        all_students = [classes_data[i][1] for i in range(len(classes_data))]
+        all_students = [classes_data[i][1] for i in range(len(classes_data))][::-1]
         for i in range(len(all_students)):
             row = tk.Frame(master=self, bg="white", highlightbackground=light_green, highlightthickness=3,
                            highlightcolor=light_green)
@@ -394,9 +479,12 @@ class studentsResults(tk.Frame):
             lb.pack(side=tk.LEFT, padx=(20, 0), fill=tk.X)
             if all_students[i] in self.students_with_result:
                 index = self.students_with_result.index(all_students[i])
-                curs.execute("SELECT * FROM marks WHERE test_name=? AND class=? AND student=?",
-                             (self.full_test_name, self.class_name, all_students[i]))
-                res = curs.fetchall()
+                if f:
+                    curs.execute("SELECT * FROM marks WHERE test_name=? AND class=? AND student=?",
+                                 (self.full_test_name, self.class_name, all_students[i]))
+                    res = curs.fetchall()
+                else:
+                    res = []
                 if len(res) == 0:
                     mark = "\n"
                 else:
@@ -505,8 +593,12 @@ class Result(tk.Frame):
         variants = cursor.fetchall()
         cursor.execute("SELECT * FROM tasks_with_questions WHERE test_name=?;", [(self.full_test_name)])
         tasks_with_questions = cursor.fetchall()
-        cnn = sqlite3.connect("marks.db")
-        curs = cnn.cursor()
+        if "marks.db" in os.listdir():
+            cnn = sqlite3.connect("marks.db")
+            curs = cnn.cursor()
+            f = True
+        else:
+            f = False
         for i in range(self.count_q):
             if types[i][2] == 0:
                 self.types[i] = 0
@@ -531,15 +623,20 @@ class Result(tk.Frame):
                 self.types[i] = 2
                 self.tasks[i] = tasks_with_questions[self.current_tsk_q][2]
                 self.current_tsk_q += 1
-
-            curs.execute("SELECT * FROM points WHERE test_name=? AND class=? AND student=? AND task=?",
-                         (self.full_test_name, self.class_name, self.student_name, i + 1))
-            rs = curs.fetchall()
+            if f:
+                curs.execute("SELECT * FROM points WHERE test_name=? AND class=? AND student=? AND task=?",
+                             (self.full_test_name, self.class_name, self.student_name, i + 1))
+                rs = curs.fetchall()
+            else:
+                rs = ""
 
             if len(rs) == 0:
-                curs.execute("SELECT * FROM points WHERE test_name=? AND class=? AND task=?",
-                             (self.full_test_name, self.class_name, i + 1))
-                res = curs.fetchall()
+                if f:
+                    curs.execute("SELECT * FROM points WHERE test_name=? AND class=? AND task=?",
+                                 (self.full_test_name, self.class_name, i + 1))
+                    res = curs.fetchall()
+                else:
+                    res = ""
                 if len(res) == 0:
                     self.max_points[i] = ""
                     self.marks[i] = ""
@@ -552,10 +649,12 @@ class Result(tk.Frame):
 
 
 
-
-        curs.execute("SELECT * FROM marks WHERE test_name=? AND class=? AND student=?",
-                     (self.full_test_name, self.class_name, self.student_name))
-        res = curs.fetchall()
+        if f:
+            curs.execute("SELECT * FROM marks WHERE test_name=? AND class=? AND student=?",
+                         (self.full_test_name, self.class_name, self.student_name))
+            res = curs.fetchall()
+        else:
+            res = ""
         if len(res) == 0:
             mark = ""
         else:
@@ -613,7 +712,7 @@ class Result(tk.Frame):
 
 
     def generate_task(self):
-        self.task_frame.grid(row=2, column=1, pady=(100, 5))
+        self.task_frame.grid(row=2, column=0, pady=(100, 5), columnspan=3)
         buttons_frame = tk.Frame(master=self.task_frame, highlightbackground=light_green,
                                  highlightcolor=light_green, highlightthickness=3)
         next_bt = tk.Button(master=buttons_frame, text="Вперед", font=base_font, command=self.go_next)
@@ -665,7 +764,7 @@ class Result(tk.Frame):
                     tk.Label(text=f"{i + 1})", font=base_font, master=vr_frame, bg=light_green).grid(
                         row=i, column=0, padx=(5, 0), pady=(5, 0), sticky="w")
                     lb = tk.Label(master=vr_frame, font=base_font,
-                                  text=self.variants[self.current - 1][i], wraplength=80, bg="white")
+                                  text=self.variants[self.current - 1][i], wraplength=200, bg="white")
                     lb.grid(
                         row=i, column=1, padx=(5, 0), pady=(5, 0), sticky="w"
                     )
